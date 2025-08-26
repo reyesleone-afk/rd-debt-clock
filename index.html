@@ -1,0 +1,572 @@
+/* ========== RD Debt Clock - app.js ========== */
+/* ------------ Utilidades generales ----------- */
+function formatNumber(num, opts = {}) {
+  const { min = 2, max = 2 } = opts;
+  const n = typeof num === "number" ? num : Number(num || 0);
+  return new Intl.NumberFormat("en-US", {
+    minimumFractionDigits: min,
+    maximumFractionDigits: max,
+  }).format(n);
+}
+
+function guardarEnCache(clave, datos) {
+  const entrada = { timestamp: Date.now(), datos };
+  localStorage.setItem(clave, JSON.stringify(entrada));
+}
+function obtenerDeCache(clave, maxHoras = 12) {
+  const item = localStorage.getItem(clave);
+  if (!item) return null;
+  const entrada = JSON.parse(item);
+  const ms = maxHoras * 60 * 60 * 1000;
+  if (Date.now() - entrada.timestamp < ms) return entrada.datos;
+  localStorage.removeItem(clave);
+  return null;
+}
+
+/* ----------------- Traducciones ---------------- */
+const traducciones = {
+  es: {
+    dashboardTitulo: "Dashboard de Indicadores Clave",
+    dashboardDescripcion: "Explorando datos en tiempo real...",
+    detalleTitulo: "Análisis Detallado",
+    detalleDescripcion:
+      "Seleccione un indicador del dashboard para ver su evolución histórica y contexto detallado aquí.",
+    impactoTitulo: "¿Qué significa esto para usted?",
+    impactoDescripcion:
+      "Traducimos los números a situaciones de la vida real para que comprenda cómo la economía afecta su día a día.",
+    botonIA: "Explicar con IA ✨",
+    botonCSV: "Descargar CSV ⬇️",
+    indicadores: {
+      tipoCambioEuro: "Tipo de Cambio (EUR)",
+      tasasInteres: "Tasas de Interés Promedio",
+      carteraCreditos: "Cartera de Créditos",
+    },
+  },
+  en: {
+    dashboardTitulo: "Key Indicators Dashboard",
+    dashboardDescripcion: "Exploring real-time data...",
+    detalleTitulo: "Detailed Analysis",
+    detalleDescripcion:
+      "Select an indicator from the dashboard to see its historical evolution and context here.",
+    impactoTitulo: "What does this mean for you?",
+    impactoDescripcion:
+      "We translate numbers into real-life situations so you understand how the economy affects your daily life.",
+    botonIA: "Explain with AI ✨",
+    botonCSV: "Download CSV ⬇️",
+    indicadores: {
+      tipoCambioEuro: "Exchange Rate (EUR)",
+      tasasInteres: "Average Interest Rates",
+      carteraCreditos: "Credit Portfolio",
+    },
+  },
+};
+let idiomaActual = localStorage.getItem("idioma") || "es";
+
+/* --------------- Estado / Datos UI --------------- */
+let currentChart;
+let currentIndicatorId = null;
+
+const data = {
+  deudaPublica: {
+    title: "Total de Captaciones",
+    value: 0,
+    unit: "Monto Total",
+    trend: "up",
+    description: "Total de captaciones por localidad.",
+    detail: {
+      description:
+        "Detalle de los montos de captaciones en las diferentes provincias del país.",
+      chartType: "bar",
+      data: {
+        labels: [],
+        datasets: [
+          {
+            label: "Captaciones por Provincia",
+            data: [],
+            backgroundColor: "#2563eb",
+            borderColor: "#1d4ed8",
+            borderWidth: 1,
+          },
+        ],
+      },
+    },
+  },
+  pib: {
+    title: "PIB Nominal",
+    value: 125.6,
+    unit: "MM USD",
+    trend: "up",
+    description: "Valor de mercado de todos los bienes y servicios finales.",
+    detail: {
+      description:
+        "Variación trimestral del PIB (simulada en esta demo).",
+      chartType: "bar",
+      data: {
+        labels: ["Q1 2024", "Q2 2024", "Q3 2024", "Q4 2024"],
+        datasets: [
+          {
+            label: "Crecimiento % PIB Trimestral",
+            data: [4.8, 5.1, 4.9, 5.3],
+            backgroundColor: "#2563eb",
+            borderColor: "#1d4ed8",
+            borderWidth: 1,
+          },
+        ],
+      },
+    },
+  },
+  inflacion: {
+    title: "Inflación Anual",
+    value: 4.8,
+    unit: "%",
+    trend: "down",
+    description: "Variación del Índice de Precios al Consumidor (IPC).",
+    detail: {
+      description:
+        "La inflación mide el aumento generalizado de los precios.",
+      chartType: "line",
+      data: {
+        labels: ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul"],
+        datasets: [
+          {
+            label: "Tasa de Inflación Mensual %",
+            data: [0.5, 0.4, 0.6, 0.3, 0.4, 0.2, 0.3],
+            fill: false,
+            borderColor: "#2563eb",
+            tension: 0.1,
+          },
+        ],
+      },
+    },
+  },
+  tasaInteres: {
+    title: "Tasa de Política Monetaria",
+    value: 7.0,
+    unit: "%",
+    trend: "stable",
+    description: "Tasa de referencia del Banco Central.",
+    detail: {
+      description:
+        "Herramienta del Banco Central para controlar la inflación.",
+      chartType: "line",
+      data: {
+        labels: ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul"],
+        datasets: [
+          {
+            label: "TPM %",
+            data: [7.5, 7.5, 7.25, 7.25, 7.0, 7.0, 7.0],
+            fill: true,
+            backgroundColor: "rgba(37, 99, 235, 0.1)",
+            borderColor: "#2563eb",
+            tension: 0.1,
+          },
+        ],
+      },
+    },
+  },
+  tipoCambio: {
+    title: "Tipo de Cambio (USD)",
+    value: 59.15,
+    unit: "RD$",
+    trend: "up",
+    description: "Tasa de cambio oficial para la venta.",
+    detail: {
+      description:
+        "Valor del peso dominicano frente al dólar estadounidense.",
+      chartType: "line",
+      data: {
+        labels: ["Lun", "Mar", "Mié", "Jue", "Vie"],
+        datasets: [
+          { label: "RD$ por USD", data: [59.05, 59.1, 59.08, 59.12, 59.15], borderColor: "#2563eb" },
+        ],
+      },
+    },
+  },
+  tipoCambioEuro: {
+    title: "Tipo de Cambio (EUR)",
+    value: 0,
+    unit: "RD$",
+    trend: "stable",
+    description: "Tasa de cambio del euro frente al peso dominicano.",
+    detail: {
+      description:
+        "Esta tasa indica cuántos pesos dominicanos se necesitan para comprar un euro. Fuente: exchangerate.host.",
+      chartType: "line",
+      data: {
+        labels: ["Hoy"],
+        datasets: [
+          {
+            label: "RD$ por EUR",
+            data: [0],
+            borderColor: "#16a34a",
+            backgroundColor: "rgba(22, 163, 74, 0.1)",
+            tension: 0.2,
+            fill: true,
+          },
+        ],
+      },
+    },
+  },
+  tasasInteres: {
+    title: "Tasas de Interés Promedio",
+    value: 0,
+    unit: "%",
+    trend: "stable",
+    description: "Promedio anual de tasas activas y pasivas.",
+    detail: {
+      description:
+        "Préstamos de consumo y depósitos de ahorro (moneda nacional).",
+      chartType: "bar",
+      data: {
+        labels: ["Préstamos Consumo", "Depósitos Ahorro"],
+        datasets: [{ label: "Tasa Promedio (%)", data: [0, 0], backgroundColor: ["#2563eb", "#16a34a"] }],
+      },
+    },
+  },
+  carteraCreditos: {
+    title: "Cartera de Créditos",
+    value: 0,
+    unit: "RD$ MM",
+    trend: "up",
+    description: "Distribución por sector económico.",
+    detail: {
+      description:
+        "Distribución de préstamos por actividad económica (bancos múltiples).",
+      chartType: "bar",
+      data: {
+        labels: [],
+        datasets: [{ label: "Millones de RD$", data: [], backgroundColor: "#f59e0b" }],
+      },
+    },
+  },
+};
+
+/* -------------- Render UI / Gráficos --------------- */
+function getTrendIcon(trend) {
+  if (trend === "up") return '<span class="trend-up">&#9650;</span>';
+  if (trend === "down") return '<span class="trend-down">&#9660;</span>';
+  return '<span class="trend-stable">&#9654;</span>';
+}
+
+function createIndicatorCard(id, indicator) {
+  const grid = document.getElementById("indicators-grid");
+  const card = document.createElement("div");
+  card.className = "indicator-card bg-white p-5 rounded-xl shadow-md";
+  card.innerHTML = `
+    <h4 class="font-semibold text-neutral-500">${indicator.title}</h4>
+    <p class="text-3xl font-bold text-neutral-800 my-2">${formatNumber(indicator.value)} 
+      <span class="text-xl font-semibold text-neutral-600">${indicator.unit}</span></p>
+    <div class="flex justify-between items-center text-sm">
+      <span class="text-neutral-500">${indicator.description}</span>
+      <span class="text-lg">${getTrendIcon(indicator.trend)}</span>
+    </div>
+    <button data-id="${id}" class="view-detail-btn mt-4 w-full bg-blue-600 text-white font-semibold py-2 rounded-lg hover:bg-blue-700 transition-colors">Ver más</button>
+  `;
+  grid.appendChild(card);
+}
+
+function updateDetailedView(id) {
+  const detailTitle = document.getElementById("detail-title");
+  const detailDescription = document.getElementById("detail-description");
+  const ctx = document.getElementById("detailChart").getContext("2d");
+  const detailSection = document.getElementById("detalle-indicador");
+
+  const indicator = data[id];
+  if (!indicator) return;
+
+  currentIndicatorId = id;
+  detailTitle.textContent = indicator.title;
+  detailDescription.textContent = indicator.detail.description;
+
+  if (currentChart) currentChart.destroy();
+  currentChart = new Chart(ctx, {
+    type: indicator.detail.chartType,
+    data: indicator.detail.data,
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { position: "top" }, tooltip: { enabled: true, mode: "index", intersect: false } },
+      scales: (indicator.detail.chartType === "bar" || indicator.detail.chartType === "line") ? { y: { beginAtZero: false } } : {},
+    },
+  });
+
+  // actualizar link de WhatsApp
+  const whatsappBtn = document.getElementById("share-whatsapp");
+  if (whatsappBtn) {
+    const msg = generarMensajeWhatsApp(indicator);
+    whatsappBtn.setAttribute("href", msg);
+  }
+
+  detailSection.classList.remove("hidden");
+  detailSection.scrollIntoView({ behavior: "smooth" });
+}
+
+/* -------------- Exportar CSV / Compartir -------------- */
+function downloadCurrentChartAsCSV() {
+  const indicator = data[currentIndicatorId];
+  if (!indicator) return;
+  const labels = indicator.detail.data.labels;
+  const values = indicator.detail.data.datasets[0].data;
+  const datasetLabel = indicator.detail.data.datasets[0].label;
+  let csv = "data:text/csv;charset=utf-8,";
+  csv += `Categoria,${datasetLabel}\n`;
+  for (let i = 0; i < labels.length; i++) csv += `${labels[i]},${values[i]}\n`;
+  const link = document.createElement("a");
+  link.setAttribute("href", encodeURI(csv));
+  link.setAttribute("download", `${indicator.title.replace(/\s+/g, "_")}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+}
+function generarMensajeWhatsApp(indicador) {
+  const titulo = indicador.title;
+  const valor = `${formatNumber(indicador.value)} ${indicador.unit || ""}`.trim();
+  const sitio = window.location.href;
+  const mensaje = `📊 *${titulo}*\n\nValor actual: ${valor}\n\nFuente: RD Debt Clock\n${sitio}`;
+  return `https://wa.me/?text=${encodeURIComponent(mensaje)}`;
+}
+
+/* -------------- Filtros / Traducción / Tema -------------- */
+function aplicarTraduccion() {
+  const t = traducciones[idiomaActual];
+  document.querySelector("#dashboard h3").textContent = t.dashboardTitulo;
+  document.querySelector("#dashboard p").textContent = t.dashboardDescripcion;
+  document.getElementById("detail-title").textContent = t.detalleTitulo;
+  document.getElementById("detail-description").textContent = t.detalleDescripcion;
+  const impactWrap = document.querySelector("#impacto-ciudadano");
+  if (impactWrap) {
+    const h = impactWrap.querySelector("h3");
+    const p = impactWrap.querySelector("p");
+    if (h) h.textContent = t.impactoTitulo;
+    if (p) p.textContent = t.impactoDescripcion;
+  }
+  const iaBtn = document.getElementById("explain-button");
+  if (iaBtn) iaBtn.textContent = t.botonIA;
+  const csvBtn = document.getElementById("download-csv-btn");
+  if (csvBtn) csvBtn.textContent = t.botonCSV;
+
+  // actualizar títulos (si hay traducción definida)
+  Object.keys(data).forEach((id) => {
+    if (t.indicadores[id]) data[id].title = t.indicadores[id];
+  });
+
+  // re-render grid
+  const grid = document.getElementById("indicators-grid");
+  grid.innerHTML = "";
+  Object.keys(data).forEach((key) => createIndicatorCard(key, data[key]));
+  document.querySelectorAll(".view-detail-btn").forEach((btn) =>
+    btn.addEventListener("click", (e) => updateDetailedView(e.target.dataset.id))
+  );
+}
+
+/* -------------- APIs / Fetchers -------------- */
+/** Reemplaza por tu backend-proxy (recomendado) */
+const BACKEND_BASE = ""; // ej: "https://tu-backend.vercel.app/api/sb"
+const API_KEY_SB = "TU_API_KEY_SB"; // <- si usas proxy no lo necesitas en el front
+
+async function fetchEuroToPeso() {
+  const cache = obtenerDeCache("tipoCambioEuro");
+  if (cache) {
+    data.tipoCambioEuro.value = cache.valor;
+    data.tipoCambioEuro.detail.data.datasets[0].data = [cache.valor];
+    data.tipoCambioEuro.detail.data.labels = [cache.fecha];
+    return;
+  }
+  try {
+    const r = await fetch("https://api.exchangerate.host/latest?base=EUR&symbols=DOP");
+    const js = await r.json();
+    const rate = js?.rates?.DOP || 0;
+    const fecha = js?.date || "Hoy";
+    data.tipoCambioEuro.value = rate;
+    data.tipoCambioEuro.detail.data.datasets[0].data = [rate];
+    data.tipoCambioEuro.detail.data.labels = [fecha];
+    guardarEnCache("tipoCambioEuro", { valor: rate, fecha });
+  } catch (e) {
+    console.error("Error EUR→DOP:", e);
+  }
+}
+
+async function fetchTasasInteres() {
+  const cache = obtenerDeCache("tasasInteresPromedio");
+  if (cache) {
+    data.tasasInteres.value = cache.promedio;
+    data.tasasInteres.detail.data.datasets[0].data = cache.series;
+    return;
+  }
+
+  try {
+    // Si tienes backend proxy, usa: `${BACKEND_BASE}/tasas-interes?...`
+    const proxy = "https://corsproxy.io/?";
+    const BASE = "https://apis.sb.gob.do/estadisticas/v2/tasas-interes";
+    const headers = { "Ocp-Apim-Subscription-Key": API_KEY_SB, "User-Agent": "Mozilla/5.0" };
+
+    const consumoUrl = `${proxy}${encodeURIComponent(`${BASE}?tipoMoneda=MN&tipoEntidad=BM&producto=CONSUMO`)}`;
+    const ahorroUrl  = `${proxy}${encodeURIComponent(`${BASE}?tipoMoneda=MN&tipoEntidad=BM&producto=AHORRO`)}`;
+
+    const [r1, r2] = await Promise.all([fetch(consumoUrl, { headers }), fetch(ahorroUrl, { headers })]);
+    const [d1, d2] = await Promise.all([r1.json(), r2.json()]);
+    const tasaConsumo = (d1?.[0]?.tasaPromedio) ?? 0;
+    const tasaAhorro  = (d2?.[0]?.tasaPromedio) ?? 0;
+
+    const promedio = Number(((tasaConsumo + tasaAhorro) / 2).toFixed(2));
+    data.tasasInteres.value = promedio;
+    data.tasasInteres.detail.data.datasets[0].data = [tasaConsumo, tasaAhorro];
+
+    guardarEnCache("tasasInteresPromedio", { promedio, series: [tasaConsumo, tasaAhorro] });
+  } catch (e) {
+    console.error("Error tasasInteres:", e);
+  }
+}
+
+async function fetchCarteraCreditos() {
+  const periodo = document.getElementById("filtroPeriodo")?.value || "2024-06";
+  const tipoEntidad = document.getElementById("filtroEntidad")?.value || "BM";
+  const moneda = document.getElementById("filtroMoneda")?.value || "MN";
+  const cacheKey = `cartera_${periodo}_${tipoEntidad}_${moneda}`;
+
+  const cache = obtenerDeCache(cacheKey);
+  if (cache) {
+    aplicarDatosCartera(cache);
+    return;
+  }
+
+  try {
+    const proxy = "https://corsproxy.io/?";
+    const BASE = "https://apis.sb.gob.do/estadisticas/v2/cartera/actividad-economica";
+    const headers = { "Ocp-Apim-Subscription-Key": API_KEY_SB, "User-Agent": "Mozilla/5.0" };
+    const url = `${proxy}${encodeURIComponent(`${BASE}?tipoEntidad=${tipoEntidad}&moneda=${moneda}&periodo=${periodo}`)}`;
+    const res = await fetch(url, { headers });
+    const js = await res.json();
+
+    const labels = (js || []).map((x) => x.actividadEconomica);
+    const valores = (js || []).map((x) => (x.montoTotal || 0) / 1_000_000);
+    const total = Number(valores.reduce((a, b) => a + b, 0).toFixed(2));
+
+    const paquete = { total, labels, valores };
+    guardarEnCache(cacheKey, paquete);
+    aplicarDatosCartera(paquete);
+  } catch (e) {
+    console.error("Error carteraCreditos:", e);
+  }
+}
+function aplicarDatosCartera(pkg) {
+  data.carteraCreditos.value = pkg.total;
+  data.carteraCreditos.detail.data.labels = pkg.labels;
+  data.carteraCreditos.detail.data.datasets[0].data = pkg.valores;
+}
+
+async function fetchCaptacionesPorLocalidad() {
+  const cache = obtenerDeCache("captaciones_localidad");
+  if (cache) {
+    aplicarCaptaciones(cache);
+    return;
+  }
+
+  try {
+    const proxy = "https://corsproxy.io/?";
+    const BASE = "https://apis.sb.gob.do/estadisticas/v2/captaciones/localidad";
+    const headers = { "Ocp-Apim-Subscription-Key": API_KEY_SB, "User-Agent": "Mozilla/5.0" };
+
+    let all = [];
+    let page = 1;
+    let hasNext = true;
+
+    while (hasNext) {
+      const url = `${proxy}${encodeURIComponent(`${BASE}?periodoInicial=2024-01&paginas=${page}&registros=100&tipoEntidad=BM`)}`;
+      const res = await fetch(url, { headers });
+      const json = await res.json();
+      const pag = JSON.parse(res.headers.get("x-pagination") || "{}");
+      all = all.concat(json || []);
+      hasNext = !!pag.HasNext;
+      page++;
+    }
+
+    guardarEnCache("captaciones_localidad", all);
+    aplicarCaptaciones(all);
+  } catch (e) {
+    console.error("Error captaciones:", e);
+  }
+}
+function aplicarCaptaciones(captaciones) {
+  if (!Array.isArray(captaciones) || !captaciones.length) return;
+  const total = captaciones.reduce((sum, r) => sum + (r.balance || 0), 0);
+  const provincias = [...new Set(captaciones.map((x) => x.provincia))];
+  const montos = provincias.map((p) =>
+    captaciones.filter((x) => x.provincia === p).reduce((s, r) => s + (r.balance || 0), 0)
+  );
+  data.deudaPublica.value = total;
+  data.deudaPublica.detail.data.labels = provincias;
+  data.deudaPublica.detail.data.datasets[0].data = montos;
+}
+
+/* -------------- Arranque / Eventos -------------- */
+document.addEventListener("DOMContentLoaded", async () => {
+  // Tema (oscuro) persistente
+  const html = document.documentElement;
+  if (localStorage.getItem("modoOscuro") === "true") html.classList.add("dark");
+  document.getElementById("toggle-dark")?.addEventListener("click", () => {
+    html.classList.toggle("dark");
+    localStorage.setItem("modoOscuro", html.classList.contains("dark"));
+  });
+
+  // Idioma
+  document.getElementById("toggle-lang")?.addEventListener("click", () => {
+    idiomaActual = idiomaActual === "es" ? "en" : "es";
+    localStorage.setItem("idioma", idiomaActual);
+    aplicarTraduccion();
+  });
+
+  // Menú móvil
+  const mobileBtn = document.getElementById("mobile-menu-button");
+  const mobileMenu = document.getElementById("mobile-menu");
+  mobileBtn?.addEventListener("click", () => mobileMenu?.classList.toggle("hidden"));
+
+  // Botón CSV
+  document.getElementById("download-csv-btn")?.addEventListener("click", downloadCurrentChartAsCSV);
+
+  // Filtros cartera
+  ["filtroPeriodo", "filtroEntidad", "filtroMoneda"].forEach((id) => {
+    const el = document.getElementById(id);
+    el?.addEventListener("change", async () => {
+      await fetchCarteraCreditos();
+      updateDetailedView("carteraCreditos");
+    });
+  });
+
+  // Carga de datos
+  const grid = document.getElementById("indicators-grid");
+  const dashboardLoading = document.getElementById("loading-dashboard");
+  try {
+    await Promise.all([
+      fetchEuroToPeso(),
+      fetchTasasInteres(),
+      fetchCarteraCreditos(),
+      fetchCaptacionesPorLocalidad(),
+    ]);
+
+    dashboardLoading?.classList.add("hidden");
+    grid.innerHTML = "";
+    Object.keys(data).forEach((k) => createIndicatorCard(k, data[k]));
+    document.querySelectorAll(".view-detail-btn").forEach((b) =>
+      b.addEventListener("click", (e) => updateDetailedView(e.target.dataset.id))
+    );
+
+    // idioma inicial
+    aplicarTraduccion();
+    // abrir un indicador por defecto
+    updateDetailedView("tipoCambioEuro");
+  } catch (e) {
+    console.error("Error general:", e);
+    dashboardLoading.innerHTML = `<p class="text-red-500">No se pudieron cargar los datos. Revisa tu conexión o API key.</p>`;
+  }
+
+  // Service Worker (PWA)
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker
+        .register("./sw.js")
+        .then((reg) => console.log("SW registrado:", reg.scope))
+        .catch((err) => console.error("SW error:", err));
+    });
+  }
+});
