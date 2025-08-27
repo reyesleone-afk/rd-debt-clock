@@ -1,0 +1,30 @@
+<!doctype html>
+<html>
+<body style="font-family:system-ui;padding:24px">
+<h2>Generar iconos desde logo.svg</h2>
+<button id="b192">Descargar icon-192.png</button>
+<button id="b512" style="margin-left:12px">Descargar icon-512.png</button>
+<script>
+async function svgToPng(size){
+  const svgText = await fetch('./logo.svg').then(r=>r.text());
+  const svgBlob = new Blob([svgText], {type:'image/svg+xml'});
+  const url = URL.createObjectURL(svgBlob);
+  const img = new Image(); img.src = url; await img.decode();
+  const c = document.createElement('canvas'); c.width = c.height = size;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#111827'; ctx.fillRect(0,0,size,size);
+  const scale = Math.min(size*0.8/img.width, size*0.8/img.height);
+  const w = img.width*scale, h=img.height*scale;
+  ctx.drawImage(img, (size-w)/2, (size-h)/2, w, h);
+  c.toBlob(b=>{
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(b);
+    a.download=`icon-${size}.png`;
+    a.click();
+  }, 'image/png');
+}
+document.getElementById('b192').onclick = ()=>svgToPng(192);
+document.getElementById('b512').onclick = ()=>svgToPng(512);
+</script>
+</body>
+</html>
