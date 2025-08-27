@@ -1,586 +1,205 @@
 <!DOCTYPE html>
 <html lang="es" class="scroll-smooth">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RD Debt Clock</title>
-    <link rel="icon" href="logo.svg" type="image/svg+xml">
-<link rel="alternate icon" href="icons/icon-192.png" type="image/png">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>RD Debt Clock</title>
 
-<meta name="description" content="Visualiza indicadores económicos clave de República Dominicana: tipo de cambio, tasas de interés, cartera de créditos, captaciones y más.">
-<meta name="keywords" content="República Dominicana, economía, tipo de cambio, inflación, tasas de interés, cartera, captaciones, RD Debt Clock">
+  <!-- SEO + Social -->
+  <meta name="description" content="Visualiza indicadores económicos clave de República Dominicana: tipo de cambio, tasas de interés, cartera de créditos, captaciones y más.">
+  <meta name="keywords" content="República Dominicana, economía, tipo de cambio, inflación, tasas de interés, cartera, captaciones, RD Debt Clock">
 
-<meta property="og:title" content="RD Debt Clock">
-<meta property="og:description" content="Indicadores económicos de RD, claros y en tiempo real.">
-<meta property="og:type" content="website">
-<meta property="og:image" content="icons/icon-512.png">
-<meta property="og:url" content="https://reyesleone-afk.github.io/rd-debt-clock/">
-<meta name="twitter:card" content="summary_large_image">
+  <!-- Open Graph / Twitter -->
+  <meta property="og:title" content="RD Debt Clock">
+  <meta property="og:description" content="Indicadores económicos de RD, claros y en tiempo real.">
+  <meta property="og:type" content="website">
+  <meta property="og:image" content="icons/icon-512.png">
+  <meta property="og:url" content="https://reyesleone-afk.github.io/rd-debt-clock/">
+  <meta name="twitter:card" content="summary_large_image">
 
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap" rel="stylesheet">
-    <!-- Chosen Palette: Warm Neutrals -->
-    <!-- Application Structure Plan: A single-page dashboard design. The top "Clock" section provides immediate high-level data. A grid of interactive cards allows exploration of key indicators. Clicking a card updates a dedicated "Detailed View" section with a dynamic Chart.js graph, preventing page reloads. A separate "Citizen Impact" section explains data in simple terms. This structure was chosen to cater to multiple user types (glance, explore, deep-dive) within a fluid, single-page experience, directly translating the source document's goals. -->
-    <!-- Visualization & Content Choices: Deuda Pública -> Goal: Inform/Compare -> Viz: Donut/Line Chart -> Interaction: Click-to-update -> Justification: Shows composition & trend / Chart.js. PIB -> Goal: Compare/Change -> Viz: Bar/Pie Chart -> Interaction: Click-to-update -> Justification: Compares periods & sectors / Chart.js. Inflación -> Goal: Change/Impact -> Viz: Line Chart -> Interaction: Click-to-update -> Justification: Shows trend over time / Chart.js. All interactions keep the user on one page, updating a single detailed view section dynamically for a cohesive SPA experience. -->
-    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
-    <style>
-        body { font-family: 'Inter', sans-serif; }
-        .chart-container {
-            position: relative;
-            width: 100%;
-            max-width: 800px;
-            margin-left: auto;
-            margin-right: auto;
-            height: 40vh;
-            max-height: 450px;
-        }
-        .indicator-card {
-            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
-        }
-        .indicator-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 12px 30px -12px rgba(2, 6, 23, 0.18);
-}
+  <!-- PWA -->
+  <meta name="theme-color" content="#2563eb">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="logo.svg" type="image/svg+xml">
+  <link rel="alternate icon" href="icons/icon-192.png" type="image/png">
 
-        }
-        .trend-up { color: #16a34a; }
-        .trend-down { color: #dc2626; }
-        .trend-stable { color: #6b7280; }
-    </style>
+  <!-- UI libs -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap" rel="stylesheet"/>
+
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    .chart-container { position: relative; width: 100%; max-width: 900px; margin: auto; height: 42vh; max-height: 480px; }
+    .indicator-card { transition: transform .2s ease, box-shadow .2s ease; }
+    .indicator-card:hover { transform: translateY(-4px); box-shadow: 0 12px 30px -12px rgba(2, 6, 23, 0.18); }
+    .trend-up { color: #16a34a; } .trend-down { color: #dc2626; } .trend-stable { color: #6b7280; }
+    .dark body { background-color: #111827; color: #f3f4f6; }
+    .dark .bg-white { background-color: #1f2937 !important; }
+    .dark .text-neutral-800 { color: #f3f4f6 !important; }
+    .dark .text-neutral-600 { color: #9ca3af !important; }
+    .dark .shadow-lg { box-shadow: 0 0 20px rgba(255,255,255,.05); }
+  </style>
 </head>
 <body class="bg-neutral-50 text-neutral-800">
 
-    <header class="bg-white/80 backdrop-blur-sm sticky top-0 z-50 shadow-sm">
-        <nav class="container mx-auto px-6 py-4 flex justify-between items-center">
-            <a href="./" class="flex items-center gap-3">
-  <img src="./logo.svg" alt="RD Debt Clock" class="h-8 w-auto">
-</a>
+  <!-- Header -->
+  <header class="bg-white/80 backdrop-blur-sm sticky top-0 z-50 shadow-sm">
+    <nav class="container mx-auto px-6 py-4 flex justify-between items-center">
+      <a href="./" class="flex items-center gap-3">
+        <!-- Añade logo.svg al repo -->
+        <img src="./logo.svg" alt="RD Debt Clock" class="h-8 w-auto">
+      </a>
 
-            <h1 class="text-2xl font-bold text-blue-900">
-                <span class="text-blue-600">RD</span> Debt Clock
-            </h1>
-            <div class="hidden md:flex space-x-6 text-neutral-600">
-                <a href="#dashboard" class="hover:text-blue-600">Dashboard</a>
-                <a href="#detalle-indicador" class="hover:text-blue-600">Análisis Detallado</a>
-                <a href="#impacto-ciudadano" class="hover:text-blue-600">Impacto Ciudadano</a>
-            </div>
-            <button id="mobile-menu-button" class="md:hidden text-neutral-800">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path></svg>
-            </button>
-        </nav>
-        <div id="mobile-menu" class="hidden md:hidden px-6 pb-4">
-            <a href="#dashboard" class="block py-2 hover:text-blue-600">Dashboard</a>
-            <a href="#detalle-indicador" class="block py-2 hover:text-blue-600">Análisis Detallado</a>
-            <a href="#impacto-ciudadano" class="block py-2 hover:text-blue-600">Impacto Ciudadano</a>
+      <div class="hidden md:flex space-x-6 text-neutral-600">
+        <a href="#dashboard" class="hover:text-blue-600">Dashboard</a>
+        <a href="#detalle-indicador" class="hover:text-blue-600">Análisis Detallado</a>
+        <a href="#impacto-ciudadano" class="hover:text-blue-600">Impacto Ciudadano</a>
+      </div>
+
+      <div class="flex items-center space-x-2">
+        <button id="toggle-dark" class="text-neutral-600 hover:text-blue-600" title="Tema oscuro">🌓</button>
+        <button id="toggle-lang" class="text-neutral-600 hover:text-blue-600" title="Idioma ES/EN">🌐 ES/EN</button>
+        <button id="mobile-menu-button" class="md:hidden text-neutral-800" title="Menú">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path></svg>
+        </button>
+      </div>
+    </nav>
+    <div id="mobile-menu" class="hidden md:hidden px-6 pb-4">
+      <a href="#dashboard" class="block py-2 hover:text-blue-600">Dashboard</a>
+      <a href="#detalle-indicador" class="block py-2 hover:text-blue-600">Análisis Detallado</a>
+      <a href="#impacto-ciudadano" class="block py-2 hover:text-blue-600">Impacto Ciudadano</a>
+    </div>
+  </header>
+
+  <main class="container mx-auto px-6 py-8 md:py-12">
+
+    <!-- Hero -->
+    <section id="hero" class="text-center mb-16 relative overflow-hidden rounded-2xl">
+      <div class="absolute inset-0 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-slate-800 dark:to-slate-900"></div>
+      <div class="relative py-12 md:py-16 px-4">
+        <h2 class="text-4xl md:text-5xl font-extrabold text-neutral-800 dark:text-white mb-4">
+          El Reloj Económico de la Nación
+        </h2>
+        <p class="text-lg text-neutral-600 dark:text-slate-300 max-w-3xl mx-auto">
+          Visualice los indicadores clave que definen la economía de la República Dominicana, actualizados y presentados de forma clara y comprensible.
+        </p>
+      </div>
+    </section>
+
+    <!-- Dashboard -->
+    <section id="dashboard" class="mb-16">
+      <div class="text-center mb-6">
+        <h3 class="text-3xl font-bold mb-2">Dashboard de Indicadores Clave</h3>
+        <p class="text-neutral-600">Explorando datos en tiempo real...</p>
+      </div>
+
+      <!-- Filtros cartera -->
+      <div class="flex flex-wrap justify-center gap-4 mb-6">
+        <select id="filtroPeriodo" class="px-4 py-2 border rounded-lg">
+          <option value="2024-06">Jun 2024</option>
+          <option value="2024-05">May 2024</option>
+          <option value="2024-04">Abr 2024</option>
+          <option value="2024-03">Mar 2024</option>
+        </select>
+        <select id="filtroEntidad" class="px-4 py-2 border rounded-lg">
+          <option value="BM">Bancos Múltiples</option>
+          <option value="SB">Sistemas de Ahorro y Crédito</option>
+          <option value="COOP">Cooperativas</option>
+        </select>
+        <select id="filtroMoneda" class="px-4 py-2 border rounded-lg">
+          <option value="MN">Pesos (RD$)</option>
+          <option value="ME">Dólares (US$)</option>
+        </select>
+      </div>
+
+      <div id="indicators-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <div id="loading-dashboard" class="col-span-full text-center py-10">
+          <div class="animate-spin rounded-full h-16 w-16 border-4 border-blue-500 border-t-transparent mx-auto mb-4"></div>
+          <p class="text-lg text-neutral-600">Cargando datos económicos...</p>
         </div>
-    </header>
+      </div>
+    </section>
 
-    <main class="container mx-auto px-6 py-8 md:py-12">
-<section id="hero" class="text-center mb-16 relative overflow-hidden rounded-2xl">
-  <div class="absolute inset-0 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-slate-800 dark:to-slate-900"></div>
-  <div class="relative py-12 md:py-16 px-4">
-    <h2 class="text-4xl md:text-5xl font-extrabold text-neutral-800 dark:text-white mb-4">
-      El Reloj Económico de la Nación
-    </h2>
-    <p class="text-lg text-neutral-600 dark:text-slate-300 max-w-3xl mx-auto">
-      Visualice los indicadores clave que definen la economía de la República Dominicana, actualizados y presentados de forma clara y comprensible.
-    </p>
-  </div>
-</section>
+    <!-- Detalle -->
+    <section id="detalle-indicador" class="bg-white p-6 md:p-8 rounded-2xl shadow-lg mb-16 hidden">
+      <div class="text-center mb-8">
+        <h3 id="detail-title" class="text-3xl font-bold mb-2">Análisis Detallado</h3>
+        <p id="detail-description" class="text-neutral-600 max-w-2xl mx-auto">
+          Seleccione un indicador del dashboard para ver su evolución histórica y contexto detallado aquí.
+        </p>
+      </div>
+      <div class="chart-container">
+        <canvas id="detailChart"></canvas>
+      </div>
+      <div class="flex justify-center mt-6 gap-3">
+        <button id="explain-button" class="bg-blue-600 text-white font-semibold py-2 px-6 rounded-lg hover:bg-blue-700 transition-all duration-200 active:scale-[0.98]">
+          Explicar con IA ✨
+        </button>
+        <button id="download-csv-btn" class="bg-green-600 text-white font-semibold py-2 px-6 rounded-lg hover:bg-green-700 transition-all duration-200 active:scale-[0.98]">
+          Descargar CSV ⬇️
+        </button>
+        <a id="share-whatsapp" target="_blank"
+           class="bg-green-500 text-white font-semibold py-2 px-6 rounded-lg hover:bg-green-600 transition-all duration-200 active:scale-[0.98]">
+          Compartir por WhatsApp 📱
+        </a>
+      </div>
 
-        <section id="hero" class="text-center mb-16">
-            <h2 class="text-4xl md:text-5xl font-extrabold text-neutral-800 mb-4">El Reloj Económico de la Nación</h2>
-            <p class="text-lg text-neutral-600 max-w-3xl mx-auto">Visualice los indicadores clave que definen la economía de la República Dominicana, actualizados y presentados de forma clara y comprensible.</p>
-        </section>
-
-        <section id="dashboard" class="mb-16">
-            <div class="text-center mb-10">
-                <h3 class="text-3xl font-bold mb-2">Dashboard de Indicadores Clave</h3>
-                <p class="text-neutral-600">Explorando datos en tiempo real...</p>
-            </div>
-            <div id="indicators-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                <div id="loading-dashboard" class="col-span-full text-center py-10">
-                    <div class="animate-spin rounded-full h-16 w-16 border-4 border-blue-500 border-t-transparent mx-auto mb-4"></div>
-                    <p class="text-lg text-neutral-600">Cargando datos económicos...</p>
-                </div>
-            </div>
-        </section>
-
-        <section id="detalle-indicador" class="bg-white p-6 md:p-8 rounded-2xl shadow-lg mb-16 hidden">
-            <div class="text-center mb-8">
-                <h3 id="detail-title" class="text-3xl font-bold mb-2">Análisis Detallado</h3>
-                <p id="detail-description" class="text-neutral-600 max-w-2xl mx-auto">Seleccione un indicador del dashboard para ver su evolución histórica y contexto detallado aquí.</p>
-            </div>
-            <div class="chart-container">
-                <canvas id="detailChart"></canvas>
-            </div>
-            <div class="flex justify-center mt-6">
-                <button id="explain-button" class="bg-blue-600 text-white font-semibold py-2 px-6 rounded-lg hover:bg-blue-700 transition-colors">Explicar con IA ✨</button>
-            </div>
-            <div id="gemini-explanation" class="mt-8 p-4 bg-blue-50 rounded-lg hidden">
-                <p id="explanation-text" class="text-neutral-700 leading-relaxed"></p>
-                <div id="loading-spinner" class="hidden flex justify-center items-center h-24">
-                    <div class="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
-                </div>
-            </div>
-        </section>
-
-        <section id="impacto-ciudadano">
-            <div class="text-center mb-10">
-                <h3 class="text-3xl font-bold mb-2">¿Qué significa esto para usted?</h3>
-                <p class="text-neutral-600 max-w-3xl mx-auto">Traducimos los números a situaciones de la vida real para que comprenda cómo la economía afecta su día a día.</p>
-            </div>
-            <div class="max-w-4xl mx-auto bg-white rounded-2xl shadow-lg p-6 md:p-8">
-                <div id="impact-content">
-                    <div class="border-b pb-4 mb-4">
-                        <h4 class="text-xl font-semibold text-blue-800">Inflación y su Bolsillo</h4>
-                        <p class="text-neutral-700 mt-2">Cuando la inflación sube, su dinero compra menos. Por ejemplo, si la inflación anual es del 5%, un producto que hoy cuesta RD$1,000, en un año podría costar RD$1,050. Esto afecta directamente el precio de la canasta básica, el combustible y los servicios.</p>
-                    </div>
-                    <div class="border-b pb-4 mb-4">
-                        <h4 class="text-xl font-semibold text-blue-800">Tipo de Cambio y Compras</h4>
-                        <p class="text-neutral-700 mt-2">Si el dólar sube de precio, los productos importados como electrodomésticos, vehículos o incluso ingredientes para alimentos, se encarecen. También afecta el costo de viajar al extranjero o de las compras por internet.</p>
-                    </div>
-                    <div>
-                        <h4 class="text-xl font-semibold text-blue-800">Tasas de Interés y sus Préstamos</h4>
-                        <p class="text-neutral-700 mt-2">Si el Banco Central sube la tasa de política monetaria, los bancos comerciales suelen aumentar las tasas de interés de los préstamos. Esto significa que tomar un préstamo hipotecario, de vehículo o de consumo se vuelve más caro. A la inversa, podría obtener un mejor rendimiento por sus ahorros.</p>
-                    </div>
-                </div>
-            </div>
-        </section>
-    </main>
-
-    <footer class="bg-neutral-800 text-white mt-16">
-        <div class="container mx-auto px-6 py-8 text-center">
-            <p>&copy; 2025 RD Debt Clock. Un proyecto conceptual para la visualización de datos.</p>
-            <p class="text-sm text-neutral-400 mt-2">Datos simulados con fines demostrativos. Las fuentes oficiales incluyen el Banco Central de la RD, Ministerio de Hacienda y ONE.</p>
+      <div id="gemini-explanation" class="mt-8 p-4 bg-blue-50 rounded-lg hidden">
+        <p id="explanation-text" class="text-neutral-700 leading-relaxed"></p>
+        <div id="loading-spinner" class="hidden flex justify-center items-center h-24">
+          <div class="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
         </div>
-    </footer>
+      </div>
+    </section>
 
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
+    <!-- Impacto -->
+    <section id="impacto-ciudadano">
+      <div class="text-center mb-10">
+        <h3 class="text-3xl font-bold mb-2">¿Qué significa esto para usted?</h3>
+        <p class="text-neutral-600 max-w-3xl mx-auto">
+          Traducimos los números a situaciones de la vida real para que comprenda cómo la economía afecta su día a día.
+        </p>
+      </div>
+      <div class="max-w-4xl mx-auto bg-white rounded-2xl shadow-lg p-6 md:p-8">
+        <div id="impact-content">
+          <div class="border-b pb-4 mb-4">
+            <h4 class="text-xl font-semibold text-blue-800">Inflación y su Bolsillo</h4>
+            <p class="text-neutral-700 mt-2">Cuando la inflación sube, su dinero compra menos…</p>
+          </div>
+          <div class="border-b pb-4 mb-4">
+            <h4 class="text-xl font-semibold text-blue-800">Tipo de Cambio y Compras</h4>
+            <p class="text-neutral-700 mt-2">Si el dólar sube de precio, los productos importados…</p>
+          </div>
+          <div>
+            <h4 class="text-xl font-semibold text-blue-800">Tasas de Interés y sus Préstamos</h4>
+            <p class="text-neutral-700 mt-2">Si el Banco Central sube la tasa de política monetaria…</p>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
 
-            let data = {
-                deudaPublica: {
-                    title: "Total de Captaciones",
-                    value: 0,
-                    unit: "Monto Total",
-                    trend: "up",
-                    description: "Total de captaciones por localidad.",
-                    detail: {
-                        description: "Detalle de los montos de captaciones en las diferentes provincias del país.",
-                        chartType: 'bar',
-                        data: {
-                            labels: [],
-                            datasets: [{
-                                label: 'Captaciones por Provincia',
-                                data: [],
-                                backgroundColor: '#2563eb',
-                                borderColor: '#1d4ed8',
-                                borderWidth: 1
-                            }]
-                        }
-                    }
-                },
-                pib: {
-                    title: "PIB Nominal",
-                    value: 125.6,
-                    unit: "MM USD",
-                    trend: "up",
-                    description: "Valor de mercado de todos los bienes y servicios finales.",
-                    detail: {
-                        description: "El Producto Interno Bruto (PIB) es el principal indicador de la actividad económica. Su crecimiento refleja la salud y dinamismo de la producción nacional. Aquí se muestra la variación trimestral.",
-                        chartType: 'bar',
-                        data: {
-                            labels: ['Q1 2024', 'Q2 2024', 'Q3 2024', 'Q4 2024'],
-                            datasets: [{
-                                label: 'Crecimiento % PIB Trimestral',
-                                data: [4.8, 5.1, 4.9, 5.3],
-                                backgroundColor: '#2563eb',
-                                borderColor: '#1d4ed8',
-                                borderWidth: 1
-                            }]
-                        }
-                    }
-                },
-                inflacion: {
-                    title: "Inflación Anual",
-                    value: 4.8,
-                    unit: "%",
-                    trend: "down",
-                    description: "Variación del Índice de Precios al Consumidor (IPC).",
-                     detail: {
-                        description: "La inflación mide el aumento generalizado de los precios. El Banco Central busca mantenerla dentro de un rango meta para proteger el poder adquisitivo de la población.",
-                        chartType: 'line',
-                        data: {
-                            labels: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul'],
-                            datasets: [{
-                                label: 'Tasa de Inflación Mensual %',
-                                data: [0.5, 0.4, 0.6, 0.3, 0.4, 0.2, 0.3],
-                                fill: false,
-                                borderColor: '#2563eb',
-                                tension: 0.1
-                            }]
-                        }
-                    }
-                },
-                tasaInteres: {
-                    title: "Tasa de Política Monetaria",
-                    value: 7.00,
-                    unit: "%",
-                    trend: "stable",
-                    description: "Tasa de referencia del Banco Central.",
-                    detail: {
-                        description: "Es la principal herramienta del Banco Central para controlar la inflación. Cambios en esta tasa influyen en los intereses que los bancos cobran por préstamos y pagan por depósitos.",
-                        chartType: 'line',
-                        data: {
-                            labels: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul'],
-                            datasets: [{
-                                label: 'TPM %',
-                                data: [7.50, 7.50, 7.25, 7.25, 7.00, 7.00, 7.00],
-                                fill: true,
-                                backgroundColor: 'rgba(37, 99, 235, 0.1)',
-                                borderColor: '#2563eb',
-                                tension: 0.1
-                            }]
-                        }
-                    }
-                },
-                tipoCambio: {
-                    title: "Tipo de Cambio (USD)",
-                    value: 59.15,
-                    unit: "RD$",
-                    trend: "up",
-                    description: "Tasa de cambio oficial para la venta.",
-                    detail: {
-                        description: "Muestra el valor del peso dominicano frente al dólar estadounidense. Su evolución impacta los precios de bienes importados, las remesas y el turismo.",
-                        chartType: 'line',
-                        data: {
-                            labels: ['Lun', 'Mar', 'Mié', 'Jue', 'Vie'],
-                            datasets: [{
-                                label: 'RD$ por USD',
-                                data: [59.05, 59.10, 59.08, 59.12, 59.15],
-                                borderColor: '#2563eb',
-                            }]
-                        }
-                    }
-                },
-                remesas: {
-                    title: "Remesas (Último mes)",
-                    value: 850,
-                    unit: "M USD",
-                    trend: "stable",
-                    description: "Flujo de divisas enviado por la diáspora.",
-                    detail: {
-                        description: "Las remesas son una fuente vital de divisas para el país, impulsando el consumo y mejorando la balanza de pagos. Aquí se ve su comportamiento mensual en el último año.",
-                        chartType: 'bar',
-                        data: {
-                            labels: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun'],
-                            datasets: [{
-                                label: 'Remesas Mensuales (M USD)',
-                                data: [800, 750, 910, 820, 880, 850],
-                                backgroundColor: '#60a5fa'
-                            }]
-                        }
-                    }
-                },
-                desempleo: {
-                    title: "Tasa de Desempleo",
-                    value: 5.5,
-                    unit: "%",
-                    trend: "down",
-                    description: "Población desocupada que busca empleo.",
-                    detail: {
-                        description: "Mide el porcentaje de la fuerza laboral que no tiene empleo pero está disponible y buscando activamente. Es un indicador clave del bienestar social y la salud del mercado laboral.",
-                        chartType: 'bar',
-                        data: {
-                            labels: ['2021', '2022', '2023', '2024 (p)'],
-                            datasets: [{
-                                label: 'Tasa de Desempleo Abierta (%)',
-                                data: [7.2, 6.5, 5.9, 5.5],
-                                backgroundColor: '#2563eb'
-                            }]
-                        }
-                    }
-                },
-                turismo: {
-                    title: "Llegada Turistas (YTD)",
-                    value: 6.2,
-                    unit: "M",
-                    trend: "up",
-                    description: "Llegada de visitantes no residentes.",
-                    detail: {
-                        description: "El turismo es un pilar de la economía dominicana. Este gráfico muestra la llegada de turistas mes a mes, un termómetro de la actividad del sector.",
-                        chartType: 'line',
-                        data: {
-                            labels: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun'],
-                            datasets: [{
-                                label: 'Llegada de Turistas (en miles)',
-                                data: [850, 920, 1100, 980, 950, 1050],
-                                fill: true,
-                                backgroundColor: 'rgba(37, 99, 235, 0.1)',
-                                borderColor: '#2563eb',
-                                tension: 0.2
-                            }]
-                        }
-                    }
-                }
-            };
-            
+  <!-- Footer -->
+  <footer class="bg-neutral-800 text-white mt-16">
+    <div class="container mx-auto px-6 py-8 text-center">
+      <p>&copy; 2025 RD Debt Clock. Un proyecto conceptual para la visualización de datos.</p>
+      <p class="text-sm text-neutral-400 mt-2">Fuentes oficiales: Superintendencia de Bancos (SB), Banco Central, Ministerio de Hacienda y ONE.</p>
+      <div class="text-center mt-4">
+        <a href="https://www.buymeacoffee.com/leoReyes" target="_blank"
+           class="bg-yellow-400 text-black px-4 py-2 rounded-lg font-bold hover:bg-yellow-300 transition">
+          ☕ Invítame un café
+        </a>
+      </div>
+    </div>
+  </footer>
 
-            const grid = document.getElementById('indicators-grid');
-            const detailTitle = document.getElementById('detail-title');
-            const detailDescription = document.getElementById('detail-description');
-            const detailChartCtx = document.getElementById('detailChart').getContext('2d');
-            const explainButton = document.getElementById('explain-button');
-            const geminiExplanationDiv = document.getElementById('gemini-explanation');
-            const explanationText = document.getElementById('explanation-text');
-            const loadingSpinner = document.getElementById('loading-spinner');
-            const dashboardLoading = document.getElementById('loading-dashboard');
-            let currentChart;
-            let currentIndicatorId = 'deudaPublica';
-
-            function formatNumber(num) {
-                return new Intl.NumberFormat('en-US', {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2
-                }).format(num);
-            }
-
-            function getTrendIcon(trend) {
-                if (trend === 'up') return '<span class="trend-up">&#9650;</span>';
-                if (trend === 'down') return '<span class="trend-down">&#9660;</span>';
-                return '<span class="trend-stable">&#9654;</span>';
-            }
-
-            function createIndicatorCard(id, indicator) {
-                const card = document.createElement('div');
-                card.className = 'indicator-card bg-white p-5 rounded-xl shadow-md';
-                card.innerHTML = `
-                    <h4 class="font-semibold text-neutral-500">${indicator.title}</h4>
-                    <p class="text-3xl font-bold text-neutral-800 my-2">${formatNumber(indicator.value)} <span class="text-xl font-semibold text-neutral-600">${indicator.unit}</span></p>
-                    <div class="flex justify-between items-center text-sm">
-                        <span class="text-neutral-500">${indicator.description}</span>
-                        <span class="text-lg">${getTrendIcon(indicator.trend)}</span>
-                    </div>
-                    <button data-id="${id}" class="view-detail-btn mt-4 w-full bg-blue-600 text-white font-semibold py-2 rounded-lg hover:bg-blue-700 transition-colors">Ver más</button>
-                `;
-                grid.appendChild(card);
-            }
-
-            function updateDetailedView(id) {
-                const indicator = data[id];
-                if (!indicator) return;
-
-                currentIndicatorId = id;
-                detailTitle.textContent = indicator.title;
-                detailDescription.textContent = indicator.detail.description;
-                geminiExplanationDiv.classList.add('hidden');
-                explanationText.innerHTML = '';
-
-                if (currentChart) {
-                    currentChart.destroy();
-                }
-
-                currentChart = new Chart(detailChartCtx, {
-                    type: indicator.detail.chartType,
-                    data: indicator.detail.data,
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: {
-                                position: 'top',
-                            },
-                            tooltip: {
-                                enabled: true,
-                                mode: 'index',
-                                intersect: false,
-                            }
-                        },
-                        scales: (indicator.detail.chartType === 'bar' || indicator.detail.chartType === 'line') ? {
-                            y: { beginAtZero: false }
-                        } : {}
-                    }
-                });
-                
-                const detailSection = document.getElementById('detalle-indicador');
-                detailSection.classList.remove('hidden');
-                detailSection.scrollIntoView({ behavior: 'smooth' });
-            }
-
-            async function fetchGeminiExplanation(indicator) {
-                explanationText.innerHTML = '';
-                geminiExplanationDiv.classList.remove('hidden');
-                loadingSpinner.classList.remove('hidden');
-
-                const prompt = `Actúa como un analista económico que explica un concepto a un ciudadano común en República Dominicana. Explica en 200 palabras el indicador económico "${indicator.title}" y su relevancia en el contexto de la economía dominicana, utilizando un lenguaje claro y ejemplos sencillos. No te refieras a ti mismo como IA o analista.`;
-                let chatHistory = [];
-                chatHistory.push({ role: "user", parts: [{ text: prompt }] });
-                const payload = { contents: chatHistory };
-                const apiKey = "";
-                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
-
-                let retries = 0;
-                const maxRetries = 5;
-                const baseDelay = 1000;
-
-                while (retries < maxRetries) {
-                    try {
-                        const response = await fetch(apiUrl, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(payload)
-                        });
-
-                        if (!response.ok) {
-                            throw new Error(`HTTP error! status: ${response.status}`);
-                        }
-
-                        const result = await response.json();
-                        loadingSpinner.classList.add('hidden');
-                        if (result.candidates && result.candidates.length > 0 &&
-                            result.candidates[0].content && result.candidates[0].content.parts &&
-                            result.candidates[0].content.parts.length > 0) {
-                            explanationText.innerHTML = result.candidates[0].content.parts[0].text.replace(/\n/g, '<br>');
-                        } else {
-                            explanationText.textContent = "Lo siento, no pude generar una explicación en este momento.";
-                        }
-                        return;
-                    } catch (error) {
-                        retries++;
-                        const delay = Math.pow(2, retries) * baseDelay;
-                        await new Promise(res => setTimeout(res, delay));
-                        if (retries === maxRetries) {
-                             loadingSpinner.classList.add('hidden');
-                            explanationText.textContent = "Lo siento, no se pudo conectar. Por favor, inténtelo de nuevo más tarde.";
-                        }
-                    }
-                }
-            }
-            
-            async function fetchPaginatedData(endPoint, params) {
-                const API_KEY = "ad32e642f9094f539641bc96943b33e7";
-                if (API_KEY === "TU_API_KEY_AQUI") {
-                    console.error("ERROR: No se ha proporcionado la API Key.");
-                    throw new Error("Clave de API no proporcionada. Por favor, ingrese su API key para usar esta funcionalidad.");
-                }
-                const BASE_URL = 'https://apis.sb.gob.do/estadisticas/v2/';
-                const proxyUrl = 'https://corsproxy.io/?'; 
-                
-                const headers = {
-                    'Ocp-Apim-Subscription-Key': API_KEY,
-                    'User-Agent': "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36",
-                };
-
-                let allData = [];
-                let hasNext = true;
-                let page = 1;
-                
-                while (hasNext) {
-                    const url = `${proxyUrl}${encodeURIComponent(`${BASE_URL}${endPoint}?${new URLSearchParams({...params, paginas: page})}`)}`;
-                    
-                    try {
-                        const response = await fetch(url, { headers });
-
-                        if (!response.ok) {
-                            console.error(`Error en la petición HTTP: ${response.status}`, await response.text());
-                            throw new Error(`Error en la petición HTTP: ${response.status}`);
-                        }
-                        
-                        const jsonData = await response.json();
-                        const paginationHeader = JSON.parse(response.headers.get('x-pagination'));
-
-                        allData = allData.concat(jsonData);
-                        hasNext = paginationHeader.HasNext;
-                        page++;
-
-                    } catch (error) {
-                        console.error("Error al obtener datos paginados:", error);
-                        throw error;
-                    }
-                }
-                return allData;
-            }
-
-            async function fetchAndRenderData() {
-                try {
-                    // Llamada a la API de captaciones por localidad
-                    console.log("Iniciando llamada a la API de captaciones por localidad...");
-                    const captaciones = await fetchPaginatedData('captaciones/localidad', {
-                        periodoInicial: "2024-01",
-                        paginas: 1,
-                        registros: 100,
-                        tipoEntidad: "BM"
-                    });
-
-                    console.log("Datos recibidos:", captaciones);
-                    
-                    // Aquí procesas los datos y actualizas el objeto 'data'
-                    if (captaciones && captaciones.length > 0) {
-                        // Calcular el total de captaciones
-                        const totalCaptaciones = captaciones.reduce((sum, record) => sum + record.balance, 0);
-
-                        // Actualiza el indicador de Deuda Pública con datos de captaciones
-                        data.deudaPublica.value = totalCaptaciones;
-                        data.deudaPublica.description = `Total de captaciones hasta ${captaciones[0].periodo}`;
-                        data.deudaPublica.unit = 'Monto Total';
-                        
-                        // Actualiza el detalle del PIB con un gráfico de captaciones por provincia
-                        const provincias = [...new Set(captaciones.map(item => item.provincia))];
-                        const montos = provincias.map(provincia => 
-                            captaciones.filter(item => item.provincia === provincia)
-                                     .reduce((sum, record) => sum + record.balance, 0)
-                        );
-
-                        // Actualiza el objeto de datos para el gráfico
-                        data.pib.detail.data.labels = provincias;
-                        data.pib.detail.data.datasets[0].data = montos;
-                        data.pib.detail.data.datasets[0].label = 'Captaciones por Provincia';
-                        data.pib.detail.description = 'Distribución de las captaciones por provincia, mostrando la concentración de la actividad financiera.';
-                        
-                    } else {
-                        throw new Error("La API devolvió un conjunto de datos vacío o nulo.");
-                    }
-
-                    dashboardLoading.classList.add('hidden');
-                    grid.innerHTML = '';
-
-                    Object.keys(data).forEach(key => {
-                        createIndicatorCard(key, data[key]);
-                    });
-
-                    document.querySelectorAll('.view-detail-btn').forEach(button => {
-                        button.addEventListener('click', (e) => {
-                            updateDetailedView(e.target.dataset.id);
-                        });
-                    });
-
-                    updateDetailedView('pib');
-                    
-                } catch (error) {
-                    console.error("Error en fetchAndRenderData:", error);
-                    dashboardLoading.innerHTML = `<p class="text-red-500">Lo sentimos, no se pudieron cargar los datos de la API. Error: ${error.message}</p>`;
-                }
-            }
-
-            fetchAndRenderData();
-
-            explainButton.addEventListener('click', () => {
-                const currentIndicator = data[currentIndicatorId];
-                if (currentIndicator) {
-                    fetchGeminiExplanation(currentIndicator);
-                }
-            });
-
-            const mobileMenuButton = document.getElementById('mobile-menu-button');
-            const mobileMenu = document.getElementById('mobile-menu');
-            mobileMenuButton.addEventListener('click', () => {
-                mobileMenu.classList.toggle('hidden');
-            });
-        });
-    </script>
+  <!-- Lógica principal -->
+  <script src="app.js"></script>
 </body>
 </html>
+
